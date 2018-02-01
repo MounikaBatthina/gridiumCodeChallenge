@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html ng-app = "gridiumApp">
+<head>
+<meta charset="utf-8">
+
+<style>
+body {
+  background-color: #F1F3F3    
+}
+.axis {
+	font: 15px sans-serif;
+}
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #D4D8DA;
+  stroke-width: 1px;
+  shape-rendering: crispEdges;
+}
+.toolTip {
+  position: absolute;
+  display: none;
+  min-width: 80px;
+  height: auto;
+  background: none repeat scroll 0 0 #ffffff;
+  border: 1px solid #6F257F;
+  padding: 14px;
+  text-align: center;
+}
+</style>
+
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.4/angular.min.js"></script>
+
+
+</head>
+<body ng-controller = "gridiumCtrl" style="margin-left: 5%">
+  <div style="margin-top: 20px"> 
+  <h2>Utility Meter Readings</h2>                                         
+    <div class="dropdown">
+      <button class="btn btn-primary dropdown-toggle" type="button" data-toggle="dropdown">Choose Year
+      <span class="caret"></span></button>
+      <ul class="dropdown-menu">
+        <li><a ng-click = "showGraph(2015)">2015-2016</p></a></li>
+        <li><a ng-click = "showGraph(2016)">2016-2017</p></a></li>
+        <li><a ng-click = "showGraph(2017)">2017-2018</p></a></li>
+      </ul>
+    </div>
+  </div>
+</body>
+<svg width="1400" height="500"></svg>
+<script>
+var gridiumApp = angular.module('gridiumApp',[]);
+gridiumApp.controller('gridiumCtrl', function($scope, $http){
+    $scope.showGraph = function(year){
+    console.log(year);
+    d3.selectAll("svg > *").remove();
+
+    var stringArray = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    var svg = d3.select("svg"),
+        margin = {top: 50, right: 20, bottom: 30, left: 200},
+        width = +svg.attr("width") - margin.left - margin.right,
+        height = +svg.attr("height") - margin.top - margin.bottom;
+      
+    var tooltip = d3.select("body").append("div").attr("class", "toolTip");
+   
+    var x = d3.scaleBand().rangeRound([0, width]).padding(0.7),
+        y = d3.scaleLinear().rangeRound([height, 0]);
+      
+    var colours = d3.scaleOrdinal()
+        .range(["#6F257F", "#CA0D59"]);
+
+    var g = svg.append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+    d3.json("data.json", function(error, data) {
+
+      if (error) throw error;                  
+
+      x.domain(data.data.map(function(d) { 
+        var month = stringArray[Number(d.attributes.initial.substring(5,7)) - 1];
+        return month; 
+      }));
+      y.domain([0, d3.max(data.data, function(d) { return d.attributes.used; }) + 10000]);
+
+      g.append("g")
+          .attr("class", "axis axis--x")
+          .attr("transform", "translate(0," + height + ")")
+          .call(d3.axisBottom(x))
+          .append("text")
+          .attr("y", -400)
+          .attr("x", 1050)
+          .attr("dy", "0.71em")
+          .attr("text-anchor", "start")
+          .attr("fill", "#5D6971")
+          .style("font-weight", "bold")
+          .style("font-size","20px")
+          .text("Year: " + year);
+          
+      g.append("g")
+          .attr("class", "axis axis--y")
+          .call(d3.axisLeft(y).ticks(5).tickFormat(function(d) { return parseInt(d) + "kWH"; }).tickSizeInner([-width]))
+        .append("text")
+          .attr("transform", "rotate(-90)")
+          .attr("y", -105)
+          .attr("x", -155)
+          .attr("dy", "0.71em")
+          .attr("text-anchor", "end")
+          .style("font-weight", "bold")
+          .style("font-size","20px")
+          .attr("fill", "#5D6971")
+          .text("Use in kWH");
+
+
+      g.selectAll(".bar")
+        .data(data.data)
+      .enter().append("rect")
+      .filter(function(d) { return d.attributes.initial.substring(0,4) == year })
+      .attr("x", function(d) { return x(stringArray[Number(d.attributes.initial.substring(5,7)) - 1]); })
+      .attr("y", function(d) { return y(d.attributes.used); })
+      .attr("width", x.bandwidth())
+      .attr("height", function(d) { return height - y(d.attributes.used); })
+      .attr("fill", function(d) { return colours(d.attributes.initial); })
+      .on("mousemove", function(d){
+          tooltip
+            .style("left", d3.event.pageX - 50 + "px")
+            .style("top", d3.event.pageY - 70 + "px")
+            .style("display", "inline-block")
+            .html("<p><b>Initial Date: </b>" + (d.attributes.initial) + "<br><p><b> Closing Date: </b>" + d.attributes.closing+ " </p><p><b>Cost: </b>$" + (d.attributes.cost) + "</p><p><b>Peak: </b>" + (d.attributes.peak) + "kW</p>");
+      })
+      .on("mouseout", function(d){ tooltip.style("display", "none");});
+    });
+  }
+})
+
+</script>
+</html>
